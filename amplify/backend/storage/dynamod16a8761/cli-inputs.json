@@ -1,0 +1,26 @@
+{
+  "resourceName": "dynamod16a8761",
+  "tableName": "dynamod16a8761",
+  "partitionKey": {
+    "fieldName": "PK",
+    "fieldType": "string"
+  },
+  "sortKey": {
+    "fieldName": "SK",
+    "fieldType": "string"
+  },
+  "gsi": [
+    {
+      "name": "GSI1",
+      "partitionKey": {
+        "fieldName": "PK",
+        "fieldType": "string"
+      },
+      "sortKey": {
+        "fieldName": "SK",
+        "fieldType": "string"
+      }
+    }
+  ],
+  "triggerFunctions": []
+}
