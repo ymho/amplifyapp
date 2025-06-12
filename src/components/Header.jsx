@@ -18,7 +18,8 @@ const Header = ({ user, signOut }) => {
 
   const navItems = [
     { label: "ホーム", path: "/" },
-    { label: "問い合わせ", path: "/inquiries" },
+    { label: "問い合わせ一覧", path: "/inquiries" },
+    { label: "新規問い合わせ", path: "/inquiries/new" },
     ...(isManaged ? [{ label: "自分の台帳", path: "/ledgers" }] : []),
     ...(isAdmin
       ? [

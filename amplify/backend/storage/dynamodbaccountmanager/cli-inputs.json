@@ -9,6 +9,29 @@
     "fieldName": "sk",
     "fieldType": "string"
   },
-  "gsi": [],
+  "gsi": [
+    {
+      "name": "gsi1",
+      "partitionKey": {
+        "fieldName": "gsi1pk",
+        "fieldType": "string"
+      },
+      "sortKey": {
+        "fieldName": "gsi1sk",
+        "fieldType": "string"
+      }
+    },
+    {
+      "name": "gsi2",
+      "partitionKey": {
+        "fieldName": "gsi2pk",
+        "fieldType": "string"
+      },
+      "sortKey": {
+        "fieldName": "gsi2sk",
+        "fieldType": "string"
+      }
+    }
+  ],
   "triggerFunctions": []
 }

@@ -10,6 +10,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { getCurrentUserInfo } from "./utils/auth";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import MakeInquiries from './pages/MakeInquiries';
 import Inquiries from './pages/Inquiries';
 
 Amplify.configure(awsExports);
@@ -34,6 +35,7 @@ function App({ signOut, user }) {
           <View as="main" flex="1" padding="1rem" backgroundColor="#ffffff">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/inquiries/new" element={<MakeInquiries />} />
               <Route path="/inquiries" element={<Inquiries />} />
             </Routes>
           </View>

@@ -1,9 +1,7 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
-  GetCommand,
   PutCommand,
   QueryCommand,
-  DeleteCommand,
   DynamoDBDocumentClient
 } = require('@aws-sdk/lib-dynamodb');
 const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware');
@@ -32,9 +30,10 @@ app.use(function (req, res, next) {
 app.get("/ledgers", async (req, res) => {
   const params = {
     TableName: tableName,
-    IndexName: "GSI1", // GSIが必要（PK begins_with 'LEDGER#', SK = 'META'）
-    KeyConditionExpression: "SK = :sk",
+    IndexName: "gsi2", // 実際のGSI名に合わせてください
+    KeyConditionExpression: "pk = :pk and sk = :sk",
     ExpressionAttributeValues: {
+      ":pk": "LEDGER",
       ":sk": "META"
     }
   };
@@ -42,6 +41,7 @@ app.get("/ledgers", async (req, res) => {
     const data = await ddbDocClient.send(new QueryCommand(params));
     res.json(data.Items);
   } catch (err) {
+    console.error("🔥 エラー:", err);
     res.status(500).json({ error: "Failed to fetch ledgers: " + err.message });
   }
 });
@@ -71,13 +71,13 @@ app.get("/ledgers/:approval_id", async (req, res) => {
   try {
     const data = await ddbDocClient.send(new QueryCommand({
       TableName: tableName,
-      KeyConditionExpression: "PK = :pk",
+      KeyConditionExpression: "pk = :pk",
       ExpressionAttributeValues: { ":pk": pk }
     }));
 
-    const meta = data.Items.find(item => item.SK === "META");
-    const users = data.Items.filter(item => item.SK.startsWith("USER#"));
-    const services = data.Items.filter(item => item.SK.startsWith("SERVICE#"));
+    const meta = data.Items.find(item => item.sk === "META");
+    const users = data.Items.filter(item => item.sk.startsWith("USER#"));
+    const services = data.Items.filter(item => item.sk.startsWith("SERVICE#"));
 
     res.json({ ...meta, users, allowed_services: services });
   } catch (err) {

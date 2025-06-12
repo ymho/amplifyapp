@@ -25,11 +25,11 @@
         },
         "ledgersHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/ledgersHandler-73573652465169454931-build.zip"
+          "s3Key": "amplify-builds/ledgersHandler-4c684d3759326253745a-build.zip"
         },
         "inquiriesHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/inquiriesHandler-7a6951355a684d4b5635-build.zip"
+          "s3Key": "amplify-builds/inquiriesHandler-65744a357a7745616149-build.zip"
         }
       },
       "storage": {

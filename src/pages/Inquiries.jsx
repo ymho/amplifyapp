@@ -1,183 +1,102 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { get } from "aws-amplify/api"; // v6でのREST API呼び出し方法
 import {
   View,
-  TextAreaField,
-  DropZone,
-  Button,
-  Text,
+  Heading,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Loader,
   Alert,
-  Flex,
+  Text,
+  Badge,
 } from "@aws-amplify/ui-react";
-import { post } from "@aws-amplify/api-rest";
-import { uploadData, getUrl } from "aws-amplify/storage";
-import { MdCheckCircle, MdFileUpload, MdRemoveCircle } from "react-icons/md";
 
-const API_NAME = "apiaccountmanager"; // Amplifyで設定したAPI名
-const PATH = "/inquiries";
+const API_NAME = "apiaccountmanager";
+const API_PATH = "/inquiries";
 
-const Inquiries = ({ user }) => {
-  const [question, setQuestion] = useState("");
-  const [files, setFiles] = useState([]);
-  const [submitted, setSubmitted] = useState(false);
+const Inquiries = () => {
+  const [inquiries, setInquiries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const hiddenInput = useRef(null);
 
-  const uploadFilesToS3 = async (files) => {
-    const uploaded = [];
+  useEffect(() => {
+    const fetchInquiries = async () => {
+      try {
+        const restOperation = get({ apiName: API_NAME, path: API_PATH });
+        const { body } = await restOperation.response;
+        const data = await body.json(); // ← v6ではここで明示的に `.json()` が必要です
+        setInquiries(data);
+      } catch (err) {
+        console.error("問い合わせ一覧取得エラー:", err);
+        setError("問い合わせ一覧の取得に失敗しました");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    for (const file of files) {
-      const key = `uploads/${Date.now()}_${crypto.randomUUID()}_${file.name}`;
-      await uploadData({
-        path: key,
-        data: file,
-        options: {
-          contentType: file.type,
-        },
-      }).result;
-
-      const url = await getUrl({ path: key });
-
-      uploaded.push({
-        file_name: file.name,
-        file_url: url.url.href,
-        content_type: file.type,
-      });
-    }
-
-    return uploaded;
-  };
-
-  const handleSubmit = async () => {
-    if (!question.trim()) {
-      setError("質問内容を入力してください。");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const attachments = await uploadFilesToS3(files);
-
-      const timestamp = new Date().toISOString();
-      const inquiryId = crypto.randomUUID();
-
-      const payload = {
-        id: inquiryId,
-        status: "open",
-        created_at: timestamp,
-        updated_at: timestamp,
-        messages: [
-          {
-            timestamp,
-            sender: user?.name || user?.email || "Unknown User",
-            sender_email: user?.email,
-            sender_role: "user",
-            content: question,
-            attachments,
-          },
-        ],
-      };
-
-      const response = await post({
-        apiName: API_NAME,
-        path: PATH,
-        options: { body: payload },
-      });
-      console.log("送信成功:", response);
-
-      setSubmitted(true);
-      setFiles([]);
-      setQuestion("");
-      setError("");
-    } catch (err) {
-      console.error("送信失敗:", err);
-      setError("送信に失敗しました。もう一度お試しください。");
-    } finally {
-      setUploading(false);
-    }
-  };
+    fetchInquiries();
+  }, []);
 
   return (
-    <View maxWidth="600px" margin="0 auto" padding="1rem">
-      <Text fontSize="1.25rem" fontWeight="bold" marginBottom="1rem">
-        問い合わせフォーム
-      </Text>
+    <View padding="1rem" maxWidth="1200px" margin="0 auto">
+      <Heading level={5} marginBottom="1rem">
+        問い合わせ一覧
+      </Heading>
 
-      {submitted && (
-        <Alert variation="success" marginBottom="1rem">
-          問い合わせを送信しました。
-        </Alert>
+      {loading && <Loader variation="linear" />}
+      {error && <Alert variation="error">{error}</Alert>}
+
+      {!loading && !error && inquiries.length === 0 && (
+        <Text>問い合わせはありません。</Text>
       )}
 
-      {error && (
-        <Alert variation="error" marginBottom="1rem">
-          {error}
-        </Alert>
+      {!loading && inquiries.length > 0 && (
+        <Table highlightOnHover>
+          <TableHead>
+            <TableRow>
+              <TableCell>件名</TableCell> {/* ← ID → タイトルへ */}
+              <TableCell>ステータス</TableCell>
+              <TableCell>作成日時</TableCell>
+              <TableCell>更新日時</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {inquiries.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.title || "(件名なし)"}</TableCell>{" "}
+                {/* ← IDの代わりにタイトル */}
+                <TableCell>
+                  <Badge
+                    size="small"
+                    variation={
+                      item.status === "open"
+                        ? "error"
+                        : item.status === "closed"
+                        ? "success"
+                        : "warning"
+                    }
+                  >
+                    {item.status === "open"
+                      ? "オープン"
+                      : item.status === "closed"
+                      ? "クローズ"
+                      : item.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {new Date(item.created_at).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  {new Date(item.updated_at).toLocaleString()}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
-
-      <TextAreaField
-        label="質問内容"
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        rows={10}
-        marginBottom="1rem"
-        placeholder="例）Googleアカウントの作成方法がわかりません。"
-      />
-
-      <DropZone
-        acceptedFileTypes={[
-          "image/*",
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          ".xls",
-          ".xlsx",
-          ".doc",
-          ".docx",
-        ]}
-        onDropComplete={({ acceptedFiles }) => setFiles(acceptedFiles)}
-      >
-        <Flex
-          direction="row"
-          justifyContent="center"
-          alignItems="center"
-          gap="0.5rem"
-        >
-          <DropZone.Accepted>
-            <MdCheckCircle fontSize="2rem" />
-          </DropZone.Accepted>
-          <DropZone.Rejected>
-            <MdRemoveCircle fontSize="2rem" />
-          </DropZone.Rejected>
-          <DropZone.Default>
-            <MdFileUpload fontSize="2rem" />
-          </DropZone.Default>
-          <Text>ファイルをドラッグ&ドロップ</Text>
-          <Button size="small" onClick={() => hiddenInput.current.click()}>
-            ファイルを選択
-          </Button>
-        </Flex>
-      </DropZone>
-
-      <input
-        type="file"
-        multiple
-        ref={hiddenInput}
-        style={{ display: "none" }}
-        onChange={(e) => setFiles(Array.from(e.target.files))}
-      />
-
-      <View marginTop="1rem" marginBottom="1rem">
-        {files.map((file) => (
-          <Text key={file.name} fontSize="0.875rem">
-            📎 {file.name}
-          </Text>
-        ))}
-      </View>
-
-      <Button variation="primary" onClick={handleSubmit} isLoading={uploading}>
-        送信する
-      </Button>
     </View>
   );
 };
