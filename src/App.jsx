@@ -12,6 +12,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import MakeInquiries from './pages/MakeInquiries';
 import Inquiries from './pages/Inquiries';
+import InquiryDetail from './pages/InquiryDetail';
 
 Amplify.configure(awsExports);
 
@@ -37,6 +38,7 @@ function App({ signOut, user }) {
               <Route path="/" element={<Home />} />
               <Route path="/inquiries/new" element={<MakeInquiries />} />
               <Route path="/inquiries" element={<Inquiries />} />
+              <Route path="/inquiries/:id" element={<InquiryDetail />} />
             </Routes>
           </View>
         </Flex>

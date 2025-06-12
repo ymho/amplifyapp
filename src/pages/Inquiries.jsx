@@ -12,6 +12,7 @@ import {
   Alert,
   Text,
   Badge,
+  Link,
 } from "@aws-amplify/ui-react";
 
 const API_NAME = "apiaccountmanager";
@@ -66,14 +67,15 @@ const Inquiries = () => {
           <TableBody>
             {inquiries.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.title || "(件名なし)"}</TableCell>{" "}
-                {/* ← IDの代わりにタイトル */}
+                <TableCell>
+                  <Link to={`/inquiries/${item.id}`}>{item.title}</Link>
+                </TableCell>
                 <TableCell>
                   <Badge
                     size="small"
                     variation={
                       item.status === "open"
-                        ? "error"
+                        ? "info"
                         : item.status === "closed"
                         ? "success"
                         : "warning"
