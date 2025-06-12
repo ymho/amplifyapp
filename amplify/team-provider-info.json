@@ -1,0 +1,44 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-accountmanager-dev-d9be5-authRole",
+      "UnauthRoleArn": "arn:aws:iam::911167912657:role/amplify-accountmanager-dev-d9be5-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::911167912657:role/amplify-accountmanager-dev-d9be5-authRole",
+      "Region": "ap-northeast-1",
+      "DeploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
+      "UnauthRoleName": "amplify-accountmanager-dev-d9be5-unauthRole",
+      "StackName": "amplify-accountmanager-dev-d9be5",
+      "StackId": "arn:aws:cloudformation:ap-northeast-1:911167912657:stack/amplify-accountmanager-dev-d9be5/bdd40770-473a-11f0-8c1b-0a445412414d",
+      "AmplifyAppId": "d3kbfk7n9i3yo8",
+      "AuthTriggerTemplateURL": "https://s3.amazonaws.com/amplify-accountmanager-dev-d9be5-deployment/amplify-cfn-templates/auth/auth-trigger-cloudformation-template.json"
+    },
+    "categories": {
+      "auth": {
+        "cognitoaccountmanager": {},
+        "userPoolGroups": {}
+      },
+      "function": {
+        "cognitoaccountmanagerPostConfirmation": {
+          "GROUP": "user",
+          "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
+          "s3Key": "amplify-builds/cognitoaccountmanagerPostConfirmation-6f495649374657494556-build.zip"
+        },
+        "ledgersHandler": {
+          "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
+          "s3Key": "amplify-builds/ledgersHandler-73573652465169454931-build.zip"
+        },
+        "inquiriesHandler": {
+          "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
+          "s3Key": "amplify-builds/inquiriesHandler-7a6951355a684d4b5635-build.zip"
+        }
+      },
+      "storage": {
+        "dynamodbaccountmanager": {},
+        "s3accountmanager": {}
+      },
+      "api": {
+        "apiaccountmanager": {}
+      }
+    }
+  }
+}

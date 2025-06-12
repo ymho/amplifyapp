@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "paths": {
+    "/ledgers": {
+      "name": "/ledgers",
+      "lambdaFunction": "ledgersHandler",
+      "permissions": {
+        "groups": {
+          "admin": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ],
+          "user": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ]
+        },
+        "setting": "private"
+      }
+    },
+    "/inquiries": {
+      "name": "/inquiries",
+      "lambdaFunction": "inquiriesHandler",
+      "permissions": {
+        "groups": {
+          "admin": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ],
+          "user": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ]
+        },
+        "setting": "private"
+      }
+    }
+  }
+}

@@ -39,8 +39,10 @@ const dict = {
     'Family Name': '姓',
     'Enter your Given Name': '太郎',
     'Enter your Family Name': '西日本',
+    'Your passwords must match': 'パスワードが一致しません',
+    'Password must have at least 8 characters': 'パスワードは8文字以上である必要があります',
     // 必要に応じて他のラベルも追加
-  },
+  }
 };
 
 I18n.putVocabularies(dict);

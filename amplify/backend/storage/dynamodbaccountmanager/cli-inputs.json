@@ -1,0 +1,14 @@
+{
+  "resourceName": "dynamodbaccountmanager",
+  "tableName": "dynamodbaccountmanager",
+  "partitionKey": {
+    "fieldName": "pk",
+    "fieldType": "string"
+  },
+  "sortKey": {
+    "fieldName": "sk",
+    "fieldType": "string"
+  },
+  "gsi": [],
+  "triggerFunctions": []
+}

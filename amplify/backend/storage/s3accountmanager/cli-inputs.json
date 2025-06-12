@@ -1,0 +1,19 @@
+{
+  "resourceName": "s3accountmanager",
+  "policyUUID": "6a970943",
+  "bucketName": "inquiry-files-account-manager-250612",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [],
+  "triggerFunction": "NONE",
+  "groupAccess": {
+    "admin": [
+      "CREATE_AND_UPDATE",
+      "READ"
+    ],
+    "user": [
+      "CREATE_AND_UPDATE",
+      "READ"
+    ]
+  }
+}

@@ -8,9 +8,12 @@ import {
   Alert,
   Flex,
 } from "@aws-amplify/ui-react";
-import { generateClient } from 'aws-amplify/api';
+import { post } from "@aws-amplify/api-rest";
 import { uploadData, getUrl } from "aws-amplify/storage";
 import { MdCheckCircle, MdFileUpload, MdRemoveCircle } from "react-icons/md";
+
+const API_NAME = "apiaccountmanager"; // Amplifyで設定したAPI名
+const PATH = "/inquiries";
 
 const Inquiries = ({ user }) => {
   const [question, setQuestion] = useState("");
@@ -20,7 +23,6 @@ const Inquiries = ({ user }) => {
   const [uploading, setUploading] = useState(false);
   const hiddenInput = useRef(null);
 
-  // S3にアップロードしてファイルの情報を取得
   const uploadFilesToS3 = async (files) => {
     const uploaded = [];
 
@@ -46,53 +48,54 @@ const Inquiries = ({ user }) => {
     return uploaded;
   };
 
-const client = generateClient();
+  const handleSubmit = async () => {
+    if (!question.trim()) {
+      setError("質問内容を入力してください。");
+      return;
+    }
 
-const handleSubmit = async () => {
-  if (!question.trim()) {
-    setError("質問内容を入力してください。");
-    return;
-  }
+    setUploading(true);
+    try {
+      const attachments = await uploadFilesToS3(files);
 
-  setUploading(true);
-  try {
-    const attachments = await uploadFilesToS3(files);
+      const timestamp = new Date().toISOString();
+      const inquiryId = crypto.randomUUID();
 
-    const timestamp = new Date().toISOString();
-    const inquiryId = crypto.randomUUID();
+      const payload = {
+        id: inquiryId,
+        status: "open",
+        created_at: timestamp,
+        updated_at: timestamp,
+        messages: [
+          {
+            timestamp,
+            sender: user?.name || user?.email || "Unknown User",
+            sender_email: user?.email,
+            sender_role: "user",
+            content: question,
+            attachments,
+          },
+        ],
+      };
 
-    const payload = {
-      id: inquiryId,
-      status: "open",
-      created_at: timestamp,
-      updated_at: timestamp,
-      messages: [
-        {
-          timestamp,
-          sender: user?.name || user?.email || "Unknown User",
-          sender_email: user?.email,
-          sender_role: "user",
-          content: question,
-          attachments,
-        },
-      ],
-    };
+      const response = await post({
+        apiName: API_NAME,
+        path: PATH,
+        options: { body: payload },
+      });
+      console.log("送信成功:", response);
 
-    await client.post("/inquiries", { body: payload });
-
-    // リセット処理
-    setSubmitted(true);
-    setFiles([]);
-    setQuestion("");
-    setError("");
-  } catch (err) {
-    console.error("送信失敗:", err);
-    setError("送信に失敗しました。もう一度お試しください。");
-  } finally {
-    setUploading(false);
-  }
-};
-
+      setSubmitted(true);
+      setFiles([]);
+      setQuestion("");
+      setError("");
+    } catch (err) {
+      console.error("送信失敗:", err);
+      setError("送信に失敗しました。もう一度お試しください。");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <View maxWidth="600px" margin="0 auto" padding="1rem">
@@ -111,7 +114,6 @@ const handleSubmit = async () => {
           {error}
         </Alert>
       )}
-
 
       <TextAreaField
         label="質問内容"

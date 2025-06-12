@@ -38,7 +38,6 @@ function App({ signOut, user }) {
             </Routes>
           </View>
         </Flex>
-
         <Footer />
       </Flex>
     </Router>
