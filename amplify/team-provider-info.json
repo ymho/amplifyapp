@@ -13,28 +13,28 @@
       "AuthTriggerTemplateURL": "https://s3.amazonaws.com/amplify-accountmanager-dev-d9be5-deployment/amplify-cfn-templates/auth/auth-trigger-cloudformation-template.json"
     },
     "categories": {
-      "auth": {
-        "cognitoaccountmanager": {},
-        "userPoolGroups": {}
-      },
       "function": {
         "cognitoaccountmanagerPostConfirmation": {
           "GROUP": "user",
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
           "s3Key": "amplify-builds/cognitoaccountmanagerPostConfirmation-6f495649374657494556-build.zip"
         },
-        "ledgersHandler": {
-          "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/ledgersHandler-59587148523742376f31-build.zip"
-        },
         "inquiriesHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
           "s3Key": "amplify-builds/inquiriesHandler-4354442b484f4a6a3742-build.zip"
+        },
+        "ledgersHandler": {
+          "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
+          "s3Key": "amplify-builds/ledgersHandler-4c535334476a32625032-build.zip"
         },
         "serviceHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
           "s3Key": "amplify-builds/serviceHandler-422f30573064335a6a47-build.zip"
         }
+      },
+      "auth": {
+        "cognitoaccountmanager": {},
+        "userPoolGroups": {}
       },
       "storage": {
         "dynamodbaccountmanager": {},

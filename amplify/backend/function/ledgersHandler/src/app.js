@@ -36,32 +36,98 @@ app.use(function (req, res, next) {
   next();
 });
 
+app.use(async (req, res, next) => {
+  try {
+    const claims = req.apiGateway?.event?.requestContext?.authorizer?.claims;
+    req.user = {
+      email: claims?.email || null,
+      groups: claims?.["cognito:groups"]?.split(",") || [],
+    };
+    req.isAdmin = req.user.groups.includes("admin");
+  } catch (e) {
+    console.warn("⚠️ ユーザー情報の抽出に失敗:", e);
+    req.user = {};
+    req.isAdmin = false;
+  }
+  next();
+});
+
 // GET /ledgers - Ledger一覧取得（METAのみ）
 app.get("/ledgers", async (req, res) => {
-  console.log("🔍 GET /ledgers - 一覧取得（METAのみ）");
-  try {
-    const result = await ddbDocClient.send(
-      new QueryCommand({
-        TableName: tableName,
-        IndexName: "gsi2",
-        KeyConditionExpression: "gsi2pk = :pk and gsi2sk = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "LEDGER",
-          ":sk": "META",
-        },
-      })
-    );
-    console.log("📦 DynamoDBからの読み込み結果:", result.Items);
-    res.json(result.Items);
-  } catch (err) {
-    console.error("🔥 DynamoDBからの読み込み失敗:", err);
-    res.status(500).json({ error: "Failed to fetch ledgers: " + err.message });
+  if (req.isAdmin) {
+    // 管理者: 全台帳を取得
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: tableName,
+          IndexName: "gsi2",
+          KeyConditionExpression: "gsi2pk = :pk and gsi2sk = :sk",
+          ExpressionAttributeValues: {
+            ":pk": "LEDGER",
+            ":sk": "META",
+          },
+        })
+      );
+      res.json(result.Items);
+    } catch (err) {
+      console.error("🔥 全台帳取得失敗:", err);
+      res.status(500).json({ error: "Failed to fetch ledgers: " + err.message });
+    }
+  } else {
+    // 一般ユーザー: 管理している台帳を取得
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: tableName,
+          IndexName: "gsi3",
+          KeyConditionExpression: "gsi3pk = :email",
+          FilterExpression: "is_manager = :trueVal",
+          ExpressionAttributeValues: {
+            ":email": `USER#${req.user}`,
+            ":trueVal": true,
+          },
+        })
+      );
+
+      const approvalIds = result.Items.map((item) =>
+        item.pk.replace("LEDGER#", "")
+      );
+
+      // 台帳のMETAを個別取得（複数回Query）
+      const metas = await Promise.all(
+        approvalIds.map(async (id) => {
+          const metaRes = await ddbDocClient.send(
+            new QueryCommand({
+              TableName: tableName,
+              KeyConditionExpression: "pk = :pk and sk = :sk",
+              ExpressionAttributeValues: {
+                ":pk": `LEDGER#${id}`,
+                ":sk": "META",
+              },
+            })
+          );
+          return metaRes.Items?.[0];
+        })
+      );
+
+      res.json(metas.filter(Boolean)); // null を除外
+    } catch (err) {
+      console.error("🔥 管理台帳取得失敗:", err);
+      res.status(500).json({ error: "Failed to fetch managed ledgers: " + err.message });
+    }
   }
 });
 
+
 // POST /ledgers - Ledger登録（META + USERS + SERVICES）
+// POST /ledgers - Ledger登録（META → USERS → SERVICES）
 app.post("/ledgers", async (req, res) => {
-  console.log("📦 POST /ledgers - Ledger登録");
+  if (!req.isAdmin) {
+    return res.status(403).json({ error: "Only admin can create ledgers." });
+  }
+
+  console.log("👤 admin:", req.user.email, "📦 Ledger作成");
+
   const {
     approval_id,
     created_at,
@@ -80,71 +146,72 @@ app.post("/ledgers", async (req, res) => {
     gsi2sk: "META",
   };
 
+  const resultSummary = {
+    meta: null,
+    users: { success: [], failed: [] },
+    services: { success: [], failed: [] },
+  };
+
   try {
+    // ① META登録
     await ddbDocClient.send(
       new PutCommand({ TableName: tableName, Item: metaItem })
     );
+    resultSummary.meta = "success";
+  } catch (err) {
+    console.error("🔥 META登録失敗:", err);
+    resultSummary.meta = "failed";
+    return res.status(500).json({
+      message: "Ledger creation failed at META stage.",
+      result: resultSummary,
+    });
+  }
 
-    for (const user of users) {
-      const userItem = {
-        pk: `LEDGER#${approval_id}`,
-        sk: `USER#${user.email}`,
-        ...user,
-        gsi3pk: `USER#${user.email}`,
-      };
+  // ② USERS登録（失敗しても処理継続）
+  for (const user of users) {
+    const userItem = {
+      pk: `LEDGER#${approval_id}`,
+      sk: `USER#${user.email}`,
+      ...user,
+      gsi3pk: `USER#${user.email}`,
+    };
+
+    try {
       await ddbDocClient.send(
         new PutCommand({ TableName: tableName, Item: userItem })
       );
+      resultSummary.users.success.push(user.email);
+    } catch (err) {
+      console.warn(`⚠️ USER登録失敗 (${user.email}):`, err.message);
+      resultSummary.users.failed.push(user.email);
     }
+  }
 
-    for (const service of allowed_services) {
-      const serviceItem = {
-        pk: `LEDGER#${approval_id}`,
-        sk: `SERVICE#${service.name}`,
-        ...service,
-      };
+  // ③ SERVICES登録（失敗しても処理継続）
+  for (const service of allowed_services) {
+    const serviceItem = {
+      pk: `LEDGER#${approval_id}`,
+      sk: `SERVICE#${service.name}`,
+      ...service,
+    };
+
+    try {
       await ddbDocClient.send(
         new PutCommand({ TableName: tableName, Item: serviceItem })
       );
+      resultSummary.services.success.push(service.name);
+    } catch (err) {
+      console.warn(`⚠️ SERVICE登録失敗 (${service.name}):`, err.message);
+      resultSummary.services.failed.push(service.name);
     }
-    console.log("📦 Ledger 登録成功");
-    res.status(201).json({ message: "Ledger and users created" });
-  } catch (err) {
-    console.error("🔥 Ledger作成失敗:", err);
-    res.status(500).json({ error: "Failed to create ledger: " + err.message });
-  }
-});
-
-app.get("/ledgers/managed-by", async (req, res) => {
-  console.log("🔍 GET /ledgers/managed-by");
-  const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ error: "email is required" });
   }
 
-  try {
-    const result = await ddbDocClient.send(
-      new QueryCommand({
-        TableName: tableName,
-        IndexName: "gsi3",
-        KeyConditionExpression: "gsi3pk = :email",
-        FilterExpression: "is_manager = :trueVal",
-        ExpressionAttributeValues: {
-          ":email": `USER#${email}`,
-          ":trueVal": true,
-        },
-      })
-    );
+  console.log("✅ Ledger 作成処理結果:", resultSummary);
 
-    const approvalIds = result.Items.map((item) =>
-      item.pk.replace("LEDGER#", "")
-    );
-
-    res.json({ approval_ids: approvalIds });
-  } catch (err) {
-    console.error("🔥 管理台帳取得失敗:", err);
-    res.status(500).json({ error: "Failed to fetch ledgers for user" });
-  }
+  return res.status(207).json({
+    message: "Ledger creation completed with partial result",
+    result: resultSummary,
+  });
 });
 
 // GET /ledgers/:approval_id - 詳細取得（META + USERS + SERVICES）
@@ -199,25 +266,31 @@ app.post("/ledgers/:approval_id/users", async (req, res) => {
 
 // POST /ledgers/:approval_id/services - サービス追加
 app.post("/ledgers/:approval_id/services", async (req, res) => {
-  console.log("📦 POST /ledgers/:approval_id/services - サービス追加");
+  if (!req.isAdmin) {
+    return res.status(403).json({ error: "Only admin can add services." });
+  }
+
   const approval_id = req.params.approval_id;
   const service = req.body;
-  const item = {
-    pk: `LEDGER#${approval_id}`,
-    sk: `SERVICE#${service.display_name}`,
-    ...service,
-  };
+
   try {
-    await ddbDocClient.send(
-      new PutCommand({ TableName: tableName, Item: item })
-    );
-    console.log("📦 サービス追加成功:", item);
+    await ddbDocClient.send(new PutCommand({
+      TableName: tableName,
+      Item: {
+        pk: `LEDGER#${approval_id}`,
+        sk: `SERVICE#${service.name}`,
+        ...service,
+      },
+    }));
+
+    console.log("✅ サービス追加成功 by", req.user.email);
     res.status(201).json({ message: "Service added to ledger" });
   } catch (err) {
     console.error("🔥 サービス追加失敗:", err);
     res.status(500).json({ error: "Failed to add service: " + err.message });
   }
 });
+
 
 
 app.listen(3000, () => console.log("Ledger API (META-style) started"));

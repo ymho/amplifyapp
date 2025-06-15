@@ -18,37 +18,18 @@ import { Link } from "react-router-dom";
 
 const API_NAME = "apiaccountmanager";
 
-const LedgerList = ({ user }) => {
+const LedgerList = () => {
   const [ledgers, setLedgers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const isAdmin = user?.groups?.includes("admin");
 
   useEffect(() => {
     const fetchLedgers = async () => {
       try {
-        // 全台帳を取得
         const res = await get({ apiName: API_NAME, path: "/ledgers" });
         const { body } = await res.response;
         const data = await body.json();
-
-        let filtered = data;
-        // 一般ユーザーの場合、管理者の台帳のみ表示
-        if (!isAdmin) {
-          const managedRes = await get({
-            apiName: API_NAME,
-            path: `/ledgers/managed-by?email=${encodeURIComponent(user.email)}`,
-          });
-          const { body: managedBody } = await managedRes.response;
-          const managedApprovalIds = await managedBody.json(); // 形式: { approval_ids: [...] }
-          console.log(managedApprovalIds)
-          filtered = data.filter((ledger) =>
-            managedApprovalIds.approval_ids.includes(ledger.approval_id)
-          );
-          console.log(managedApprovalIds)
-        }
-
-        setLedgers(filtered);
+        setLedgers(data);
       } catch (err) {
         console.error("台帳一覧の取得に失敗:", err);
         setLoadError("台帳の取得に失敗しました。");
@@ -58,7 +39,7 @@ const LedgerList = ({ user }) => {
     };
 
     fetchLedgers();
-  }, [user, isAdmin]);
+  }, []);
 
   return (
     <View maxWidth="1200px" margin="0 auto" padding="1rem">
