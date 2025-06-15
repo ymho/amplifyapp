@@ -14,17 +14,15 @@ import { MdMenu, MdClose } from "react-icons/md";
 const Header = ({ user, signOut }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const isAdmin = user?.groups?.includes("admin");
-  const isManaged = user?.groups?.includes("user");
 
   const navItems = [
-    { label: "ホーム", path: "/" },
+    { label: "アカウント台帳", path: "/" },
     { label: "問い合わせ一覧", path: "/inquiries" },
-    { label: "新規問い合わせ", path: "/inquiries/new" },
-    ...(isManaged ? [{ label: "自分の台帳", path: "/ledgers" }] : []),
+    { label: "新規問い合わせ", path: "/inquiry/new" },
     ...(isAdmin
       ? [
-          { label: "全台帳管理", path: "/admin/ledgers" },
-          { label: "問い合わせ管理", path: "/admin/inquiries" },
+          { label: "台帳作成（管理者）", path: "/ledger/new" },
+          { label: "サービスマスタ（管理者）", path: "/service" },
         ]
       : []),
   ];
@@ -40,7 +38,16 @@ const Header = ({ user, signOut }) => {
   });
 
   return (
-    <View as="header" backgroundColor="#ffffff" borderBottom="1px solid #E5E7EB">
+    <View
+      as="header"
+      backgroundColor="#ffffff"
+      borderBottom="1px solid #E5E7EB"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 1000, // 上に重ねる
+      }}
+    >
       {/* ヘッダー上部 */}
       <Flex
         padding="1rem 2rem"
@@ -94,7 +101,7 @@ const Header = ({ user, signOut }) => {
           display={{ base: "none", medium: "flex" }}
         >
           <Text fontSize="0.875rem" color="#6B7280">
-            {user?.email}
+            {user?.email || "ゲストユーザー"}
           </Text>
           <Button size="small" variation="primary" onClick={signOut}>
             サインアウト

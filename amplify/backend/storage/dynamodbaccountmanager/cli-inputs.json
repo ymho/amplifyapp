@@ -31,6 +31,13 @@
         "fieldName": "gsi2sk",
         "fieldType": "string"
       }
+    },
+    {
+      "name": "gsi3",
+      "partitionKey": {
+        "fieldName": "gsi3pk",
+        "fieldType": "string"
+      }
     }
   ],
   "triggerFunctions": []

@@ -38,6 +38,14 @@
           ],
           "category": "function",
           "resourceName": "inquiriesHandler"
+        },
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "serviceHandler"
         }
       ],
       "providerPlugin": "awscloudformation",
@@ -129,16 +137,61 @@
       "build": true,
       "dependsOn": [
         {
-          "attributeEnvMap": {
-            "Arn": "TABLE_ARN",
-            "Name": "TABLE_NAME"
-          },
           "attributes": [
             "Name",
-            "Arn"
+            "Arn",
+            "StreamArn"
           ],
           "category": "storage",
           "resourceName": "dynamodbaccountmanager"
+        },
+        {
+          "attributes": [
+            "BucketName"
+          ],
+          "category": "storage",
+          "resourceName": "s3accountmanager"
+        },
+        {
+          "attributes": [
+            "Name",
+            "Arn",
+            "StreamArn"
+          ],
+          "category": "storage",
+          "resourceName": "servicemaster"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "serviceHandler": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn",
+            "StreamArn"
+          ],
+          "category": "storage",
+          "resourceName": "dynamodbaccountmanager"
+        },
+        {
+          "attributes": [
+            "BucketName"
+          ],
+          "category": "storage",
+          "resourceName": "s3accountmanager"
+        },
+        {
+          "attributes": [
+            "Name",
+            "Arn",
+            "StreamArn"
+          ],
+          "category": "storage",
+          "resourceName": "servicemaster"
         }
       ],
       "providerPlugin": "awscloudformation",
@@ -201,6 +254,22 @@
           "resourceName": "ledgersHandler"
         }
       ]
+    },
+    "AMPLIFY_function_serviceHandler_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "serviceHandler"
+        }
+      ]
+    },
+    "AMPLIFY_function_serviceHandler_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "serviceHandler"
+        }
+      ]
     }
   },
   "storage": {
@@ -234,6 +303,10 @@
       ],
       "providerPlugin": "awscloudformation",
       "service": "S3"
+    },
+    "servicemaster": {
+      "providerPlugin": "awscloudformation",
+      "service": "DynamoDB"
     }
   }
 }

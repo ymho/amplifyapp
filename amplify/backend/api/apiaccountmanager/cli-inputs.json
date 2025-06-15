@@ -2,7 +2,7 @@
   "version": 1,
   "paths": {
     "/ledgers": {
-      "name": "/ledgers",
+      "name": "/ledgers/{proxy+}",
       "lambdaFunction": "ledgersHandler",
       "permissions": {
         "groups": {
@@ -23,8 +23,29 @@
       }
     },
     "/inquiries": {
-      "name": "/inquiries",
+      "name": "/inquiries/{proxy+}",
       "lambdaFunction": "inquiriesHandler",
+      "permissions": {
+        "groups": {
+          "admin": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ],
+          "user": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ]
+        },
+        "setting": "private"
+      }
+    },
+    "/services": {
+      "name": "/services/{proxy+}",
+      "lambdaFunction": "serviceHandler",
       "permissions": {
         "groups": {
           "admin": [

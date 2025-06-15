@@ -10,14 +10,15 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { getCurrentUserInfo } from "./utils/auth";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import MakeInquiries from './pages/MakeInquiries';
+import InquiryNew from './pages/InquiryNew';
 import Inquiries from './pages/Inquiries';
 import InquiryDetail from './pages/InquiryDetail';
+import LedgerNew from './pages/LedgerNew';
+import ServiceMaster from './pages/ServiceMaster';
+import Ledgers from './pages/Ledgers';
+import LedgerDetail from "./pages/LedgerDetail";
 
 Amplify.configure(awsExports);
-
-// 仮ページ
-const Home = () => <View padding="1rem">ホーム</View>;
 
 function App({ signOut, user }) {
   const [userInfo, setUserInfo] = useState(null);
@@ -35,10 +36,17 @@ function App({ signOut, user }) {
         <Flex direction="row" flex="1">
           <View as="main" flex="1" padding="1rem" backgroundColor="#ffffff">
             <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/inquiries/new" element={<MakeInquiries />} />
-              <Route path="/inquiries" element={<Inquiries />} />
-              <Route path="/inquiries/:id" element={<InquiryDetail />} />
+              <Route path="/inquiries" element={<Inquiries user={userInfo} />} />
+              <Route path="/inquiry/new" element={<InquiryNew user={userInfo} />} />
+              <Route path="/inquiries/:id" element={<InquiryDetail user={userInfo} />} />
+              {/* 他のページもここに追加 */}
+              {/* <Route path="/ledgers" element={<Ledgers user={userInfo} />} /> */}
+              <Route path="/" element={<Ledgers user={userInfo} />} />
+              <Route path="/ledgers/:id" element={<LedgerDetail user={userInfo} />} />
+              <Route path="/ledger/new" element={<LedgerNew user={userInfo} />} />
+              {/* <Route path="/admin/ledgers" element={<AdminLedgers user={userInfo} />} /> */}
+              {/* <Route path="/admin/inquiries" element={<AdminInquiries user={userInfo} />} /> */}
+              <Route path="/service" element={<ServiceMaster user={userInfo} />} />
             </Routes>
           </View>
         </Flex>

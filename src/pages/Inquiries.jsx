@@ -12,8 +12,11 @@ import {
   Alert,
   Text,
   Badge,
+  Flex,
   Link,
+  Button,
 } from "@aws-amplify/ui-react";
+import { Link as RouterLink } from "react-router-dom";
 
 const API_NAME = "apiaccountmanager";
 const API_PATH = "/inquiries";
@@ -37,15 +40,17 @@ const Inquiries = () => {
         setLoading(false);
       }
     };
-
     fetchInquiries();
   }, []);
 
   return (
     <View padding="1rem" maxWidth="1200px" margin="0 auto">
-      <Heading level={5} marginBottom="1rem">
-        問い合わせ一覧
-      </Heading>
+      <Flex justifyContent="space-between" alignItems="center" marginBottom="1rem">
+        <Heading level={4}>問い合わせ一覧</Heading>
+        <Link to="/inquiry/new">
+          <Button variation="primary">新規作成</Button>
+        </Link>
+      </Flex>
 
       {loading && <Loader variation="linear" />}
       {error && <Alert variation="error">{error}</Alert>}
@@ -66,10 +71,17 @@ const Inquiries = () => {
           </TableHead>
           <TableBody>
             {inquiries.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Link to={`/inquiries/${item.id}`}>{item.title}</Link>
-                </TableCell>
+              <TableRow
+                as={RouterLink}
+                to={`/inquiries/${item.id}`}
+                key={item.id}
+                style={{
+                  textDecoration: "none",
+                  color: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                <TableCell>{item.title}</TableCell>
                 <TableCell>
                   <Badge
                     size="small"

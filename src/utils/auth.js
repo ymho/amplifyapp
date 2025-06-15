@@ -18,6 +18,8 @@ export const getCurrentUserInfo = async () => {
       email: attributes.email,
       name: attributes.name || '', // User Pool 設定によっては未設定の可能性あり
       groups: groups,
+      family_name: attributes.family_name || '', // Cognito User Pool で設定されている場合
+      given_name: attributes.given_name || '', // Cognito User Pool で設定されている場合
     };
   } catch (err) {
     console.error('ユーザー情報の取得に失敗:', err);

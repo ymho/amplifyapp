@@ -75,12 +75,12 @@
         "FunctionName": {
           "Fn::If": [
             "ShouldNotCreateEnvResources",
-            "ledgersHandler",
+            "serviceHandler",
             {
               "Fn::Join": [
                 "",
                 [
-                  "ledgersHandler",
+                  "serviceHandler",
                   "-",
                   {
                     "Ref": "env"
@@ -138,12 +138,12 @@
         "RoleName": {
           "Fn::If": [
             "ShouldNotCreateEnvResources",
-            "accountmanagerLambdaRole42b1024b",
+            "accountmanagerLambdaRolebbec82c9",
             {
               "Fn::Join": [
                 "",
                 [
-                  "accountmanagerLambdaRole42b1024b",
+                  "accountmanagerLambdaRolebbec82c9",
                   "-",
                   {
                     "Ref": "env"
@@ -209,34 +209,6 @@
                   }
                 ]
               }
-            },
-            {
-              "Effect": "Allow",
-              "Action": [
-                "dynamodb:DescribeTable",
-                "dynamodb:GetItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:DeleteItem"
-              ],
-              "Resource": [
-                {
-                  "Ref": "storagedynamodbaccountmanagerArn"
-                },
-                {
-                  "Fn::Join": [
-                    "/",
-                    [
-                      {
-                        "Ref": "storagedynamodbaccountmanagerArn"
-                      },
-                      "index/*"
-                    ]
-                  ]
-                }
-              ]
             }
           ]
         }

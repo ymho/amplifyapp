@@ -10,47 +10,33 @@ import {
   Flex,
 } from "@aws-amplify/ui-react";
 import { post } from "@aws-amplify/api-rest";
-import { uploadData, getUrl } from "aws-amplify/storage";
 import { MdCheckCircle, MdFileUpload, MdRemoveCircle } from "react-icons/md";
+import { getFileIcon } from "../utils/getFileIcon";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import { uploadFilesToS3 } from "../utils/uploadFilesToS3";
 
 const API_NAME = "apiaccountmanager"; // Amplifyで設定したAPI名
 const PATH = "/inquiries";
 
 const Inquiries = ({ user }) => {
   const [title, setTitle] = useState("");
+  const [department, setDepartment] = useState(""); 
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const hiddenInput = useRef(null);
 
-  const uploadFilesToS3 = async (files) => {
-    const uploaded = [];
-
-    for (const file of files) {
-      const key = `uploads/${Date.now()}_${crypto.randomUUID()}_${file.name}`;
-      await uploadData({
-        path: key,
-        data: file,
-        options: {
-          contentType: file.type,
-        },
-      }).result;
-
-      const url = await getUrl({ path: key });
-
-      uploaded.push({
-        file_name: file.name,
-        file_url: url.url.href,
-        content_type: file.type,
-      });
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      setError("タイトルを入力してください。");
+      return;
     }
 
-    return uploaded;
-  };
-
-  const handleSubmit = async () => {
     if (!question.trim()) {
       setError("質問内容を入力してください。");
       return;
@@ -58,7 +44,7 @@ const Inquiries = ({ user }) => {
 
     setUploading(true);
     try {
-      const attachments = await uploadFilesToS3(files);
+      const attachments = await uploadFilesToS3(files, "uploads");
 
       const timestamp = new Date().toISOString();
       const inquiryId = crypto.randomUUID();
@@ -67,14 +53,22 @@ const Inquiries = ({ user }) => {
         id: inquiryId,
         status: "open",
         title: title,
+        department: department,
         created_at: timestamp,
         updated_at: timestamp,
         messages: [
           {
-            timestamp,
-            sender: user?.name || user?.email || "Unknown User",
+            created_at: timestamp,
+            sender:
+              (user?.family_name && user?.given_name
+                ? `${user.family_name} ${user.given_name}`
+                : user?.email) || "Unknown User",
             sender_email: user?.email,
-            sender_role: "user",
+            sender_role: user?.groups?.includes("admin")
+              ? "admin"
+              : user?.groups?.includes("user")
+              ? "user"
+              : "undefined",
             content: question,
             attachments,
           },
@@ -85,12 +79,13 @@ const Inquiries = ({ user }) => {
         apiName: API_NAME,
         path: PATH,
         options: { body: payload },
-      });
+      }).response;
       console.log("送信成功:", response);
 
       setSubmitted(true);
       setFiles([]);
       setTitle("");
+      setDepartment("");
       setQuestion("");
       setError("");
     } catch (err) {
@@ -118,21 +113,55 @@ const Inquiries = ({ user }) => {
           {error}
         </Alert>
       )}
+      <Text as="label">タイトル</Text>
       <TextField
-        label="タイトル"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="例）Googleアカウントの初期設定方法について"
         marginBottom="1rem"
       />
-      <TextAreaField
-        label="質問内容"
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        rows={10}
-        marginBottom="1rem"
-        placeholder="例）Googleアカウントの作成方法がわかりません。"
-      />
+      <Text as="label">あなたの部署</Text>
+<TextField
+  value={department}
+  onChange={(e) => setDepartment(e.target.value)}
+  placeholder="例）システムマネジメント部"
+  marginBottom="1rem"
+/>
+      <View marginBottom="1rem">
+        <Flex justifyContent="space-between" alignItems="center">
+          <Text as="label">質問内容</Text>
+          <Button
+            size="small"
+            variation="link"
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            {showPreview ? "編集に戻る" : "プレビュー表示"}
+          </Button>
+        </Flex>
+
+        {showPreview ? (
+          <View
+            padding="1rem"
+            border="1px solid #ccc"
+            borderRadius="0.5rem"
+            backgroundColor="#ffffff"
+            minHeight="15rem"
+            marginTop="0.5rem"
+          >
+            <ReactMarkdown rehypePlugins={[rehypeSanitize, remarkGfm]}>
+              {question || "*（質問内容がありません）*"}
+            </ReactMarkdown>
+          </View>
+        ) : (
+          <TextAreaField
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            rows={10}
+            placeholder="ここに質問内容を入力してください（Markdownが使えます）"
+            style={{ minHeight: "15rem" }}
+          />
+        )}
+      </View>
 
       <DropZone
         acceptedFileTypes={[
@@ -162,7 +191,7 @@ const Inquiries = ({ user }) => {
           <DropZone.Default>
             <MdFileUpload fontSize="2rem" />
           </DropZone.Default>
-          <Text>ファイルをドラッグ&ドロップ</Text>
+          <Text>ファイルをドロップまたは</Text>
           <Button size="small" onClick={() => hiddenInput.current.click()}>
             ファイルを選択
           </Button>
@@ -174,20 +203,51 @@ const Inquiries = ({ user }) => {
         multiple
         ref={hiddenInput}
         style={{ display: "none" }}
-        onChange={(e) => setFiles(Array.from(e.target.files))}
+        onChange={(e) => {
+          const newFiles = Array.from(e.target.files);
+          setFiles((prevFiles) => {
+            const existingNames = new Set(prevFiles.map((f) => f.name));
+            const filtered = newFiles.filter((f) => !existingNames.has(f.name));
+            return [...prevFiles, ...filtered];
+          });
+        }}
       />
 
       <View marginTop="1rem" marginBottom="1rem">
-        {files.map((file) => (
-          <Text key={file.name} fontSize="0.875rem">
-            📎 {file.name}
-          </Text>
+        {files.map((file, index) => (
+          <Flex
+            key={file.name}
+            alignItems="center"
+            justifyContent="space-between"
+            padding="0.25rem 0"
+          >
+            <Flex alignItems="center" gap="0.5rem">
+              {getFileIcon(file.name)}
+              <Text fontSize="0.875rem">{file.name}</Text>
+            </Flex>
+            <Button
+              size="small"
+              variation="link"
+              colorTheme="error"
+              onClick={() => {
+                setFiles((prev) => prev.filter((_, i) => i !== index));
+              }}
+            >
+              削除
+            </Button>
+          </Flex>
         ))}
       </View>
 
-      <Button variation="primary" onClick={handleSubmit} isLoading={uploading}>
-        送信する
-      </Button>
+      <Flex justifyContent="flex-end">
+        <Button
+          variation="primary"
+          onClick={handleSubmit}
+          isLoading={uploading}
+        >
+          送信する
+        </Button>
+      </Flex>
     </View>
   );
 };
