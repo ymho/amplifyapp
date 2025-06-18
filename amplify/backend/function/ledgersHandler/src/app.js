@@ -30,32 +30,49 @@ const app = express();
 app.use(bodyParser.json());
 app.use(awsServerlessExpressMiddleware.eventContext());
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-username"
+  );
+  if (req.method === "OPTIONS") {
+    return res.status(200).json({
+      message: "CORS preflight passed"
+    });
+  }
   next();
 });
 
-app.use(async (req, res, next) => {
-  try {
-    const claims = req.apiGateway?.event?.requestContext?.authorizer?.claims;
-    req.user = {
-      email: claims?.email || null,
-      groups: claims?.["cognito:groups"]?.split(",") || [],
-    };
-    req.isAdmin = req.user.groups.includes("admin");
-  } catch (e) {
-    console.warn("⚠️ ユーザー情報の抽出に失敗:", e);
-    req.user = {};
-    req.isAdmin = false;
-  }
+app.use((req, res, next) => {
+  const claims = req.apiGateway?.event?.requestContext?.authorizer?.claims || {};
+  const groups = claims["cognito:groups"]?.split(",") || [];
+  console.log("📜 requestContext:", req.apiGateway?.event?.requestContext);
+  console.log("🔐 userclaims:", claims);
+
+
+  req.user = {
+    email: claims.email,
+    given_name: claims.given_name,
+    family_name: claims.family_name,
+    groups,
+    username: claims["cognito:username"],
+    isAdmin: groups.includes("admin"),
+  };
+
+  req.isAdmin = req.user.isAdmin;
+  req.userRole = req.isAdmin ? "admin" : "user";
+
+  console.log("✅ 認証済ユーザー:", req.user);
+
   next();
 });
 
 // GET /ledgers - Ledger一覧取得（METAのみ）
 app.get("/ledgers", async (req, res) => {
+  console.log("🔍 GET /ledgers-  Ledger一覧取得（METAのみ）");
   if (req.isAdmin) {
-    // 管理者: 全台帳を取得
     try {
       const result = await ddbDocClient.send(
         new QueryCommand({
@@ -68,10 +85,13 @@ app.get("/ledgers", async (req, res) => {
           },
         })
       );
+      console.log("📦 Ledger一覧の読み込み結果:", result.Items);
       res.json(result.Items);
     } catch (err) {
-      console.error("🔥 全台帳取得失敗:", err);
-      res.status(500).json({ error: "Failed to fetch ledgers: " + err.message });
+      console.error("🔥 Ledger一覧の取得失敗:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch ledgers: " + err.message });
     }
   } else {
     // 一般ユーザー: 管理している台帳を取得
@@ -83,7 +103,7 @@ app.get("/ledgers", async (req, res) => {
           KeyConditionExpression: "gsi3pk = :email",
           FilterExpression: "is_manager = :trueVal",
           ExpressionAttributeValues: {
-            ":email": `USER#${req.user}`,
+            ":email": `USER#${req.user.email}`,
             ":trueVal": true,
           },
         })
@@ -113,15 +133,16 @@ app.get("/ledgers", async (req, res) => {
       res.json(metas.filter(Boolean)); // null を除外
     } catch (err) {
       console.error("🔥 管理台帳取得失敗:", err);
-      res.status(500).json({ error: "Failed to fetch managed ledgers: " + err.message });
+      res
+        .status(500)
+        .json({ error: "Failed to fetch managed ledgers: " + err.message });
     }
   }
 });
 
-
 // POST /ledgers - Ledger登録（META + USERS + SERVICES）
-// POST /ledgers - Ledger登録（META → USERS → SERVICES）
 app.post("/ledgers", async (req, res) => {
+  console.log("📦 POST /ledgers - Ledger登録（META + USERS + SERVICES）");
   if (!req.isAdmin) {
     return res.status(403).json({ error: "Only admin can create ledgers." });
   }
@@ -216,7 +237,9 @@ app.post("/ledgers", async (req, res) => {
 
 // GET /ledgers/:approval_id - 詳細取得（META + USERS + SERVICES）
 app.get("/ledgers/:approval_id", async (req, res) => {
-  console.log("🔍 GET /ledgers/:approval_id - 詳細取得（META + USERS + SERVICES）");
+  console.log(
+    "🔍 GET /ledgers/:approval_id - 詳細取得（META + USERS + SERVICES）"
+  );
   const approval_id = req.params.approval_id;
   const pk = `LEDGER#${approval_id}`;
   try {
@@ -274,14 +297,16 @@ app.post("/ledgers/:approval_id/services", async (req, res) => {
   const service = req.body;
 
   try {
-    await ddbDocClient.send(new PutCommand({
-      TableName: tableName,
-      Item: {
-        pk: `LEDGER#${approval_id}`,
-        sk: `SERVICE#${service.name}`,
-        ...service,
-      },
-    }));
+    await ddbDocClient.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: {
+          pk: `LEDGER#${approval_id}`,
+          sk: `SERVICE#${service.name}`,
+          ...service,
+        },
+      })
+    );
 
     console.log("✅ サービス追加成功 by", req.user.email);
     res.status(201).json({ message: "Service added to ledger" });
@@ -290,8 +315,6 @@ app.post("/ledgers/:approval_id/services", async (req, res) => {
     res.status(500).json({ error: "Failed to add service: " + err.message });
   }
 });
-
-
 
 app.listen(3000, () => console.log("Ledger API (META-style) started"));
 module.exports = app;

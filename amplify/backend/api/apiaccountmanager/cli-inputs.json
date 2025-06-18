@@ -1,31 +1,17 @@
 {
   "version": 1,
   "paths": {
-    "/ledgers": {
-      "name": "/ledgers/{proxy+}",
-      "lambdaFunction": "ledgersHandler",
-      "permissions": {
-        "groups": {
-          "admin": [
-            "create",
-            "read",
-            "update",
-            "delete"
-          ],
-          "user": [
-            "create",
-            "read",
-            "update",
-            "delete"
-          ]
-        },
-        "setting": "private"
-      }
-    },
     "/inquiries": {
-      "name": "/inquiries/{proxy+}",
+      "name": "/inquiries",
       "lambdaFunction": "inquiriesHandler",
       "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ],
         "groups": {
           "admin": [
             "create",
@@ -39,14 +25,20 @@
             "update",
             "delete"
           ]
-        },
-        "setting": "private"
+        }
       }
     },
     "/services": {
-      "name": "/services/{proxy+}",
+      "name": "/services",
       "lambdaFunction": "serviceHandler",
       "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ],
         "groups": {
           "admin": [
             "create",
@@ -60,8 +52,34 @@
             "update",
             "delete"
           ]
-        },
-        "setting": "private"
+        }
+      }
+    },
+    "/ledgers": {
+      "name": "/ledgers",
+      "lambdaFunction": "ledgersHandler",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ],
+        "groups": {
+          "admin": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ],
+          "user": [
+            "create",
+            "read",
+            "update",
+            "delete"
+          ]
+        }
       }
     }
   }

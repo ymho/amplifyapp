@@ -16,13 +16,14 @@ import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { uploadFilesToS3 } from "../utils/uploadFilesToS3";
+import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_NAME = "apiaccountmanager"; // Amplifyで設定したAPI名
+const API_NAME = "apiaccountmanager";
 const PATH = "/inquiries";
 
 const Inquiries = ({ user }) => {
   const [title, setTitle] = useState("");
-  const [department, setDepartment] = useState(""); 
+  const [department, setDepartment] = useState("");
   const [question, setQuestion] = useState("");
   const [files, setFiles] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -45,7 +46,8 @@ const Inquiries = ({ user }) => {
     setUploading(true);
     try {
       const attachments = await uploadFilesToS3(files, "uploads");
-
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
       const timestamp = new Date().toISOString();
       const inquiryId = crypto.randomUUID();
 
@@ -78,7 +80,12 @@ const Inquiries = ({ user }) => {
       const response = await post({
         apiName: API_NAME,
         path: PATH,
-        options: { body: payload },
+        options: {
+          body: payload,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       }).response;
       console.log("送信成功:", response);
 
@@ -121,12 +128,12 @@ const Inquiries = ({ user }) => {
         marginBottom="1rem"
       />
       <Text as="label">あなたの部署</Text>
-<TextField
-  value={department}
-  onChange={(e) => setDepartment(e.target.value)}
-  placeholder="例）システムマネジメント部"
-  marginBottom="1rem"
-/>
+      <TextField
+        value={department}
+        onChange={(e) => setDepartment(e.target.value)}
+        placeholder="例）システムマネジメント部"
+        marginBottom="1rem"
+      />
       <View marginBottom="1rem">
         <Flex justifyContent="space-between" alignItems="center">
           <Text as="label">質問内容</Text>

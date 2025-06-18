@@ -24,6 +24,7 @@ import {
 } from "react-icons/md";
 import { uploadFilesToS3 } from "../utils/uploadFilesToS3";
 import { getFileIcon } from "../utils/getFileIcon";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_NAME = "apiaccountmanager";
 const API_BASE_PATH = "/services/master";
@@ -47,11 +48,26 @@ const ServiceMaster = ({ user }) => {
   const hiddenInput = useRef(null);
 
   const fetchXlsxLists = async () => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     setLoadingList(true);
     try {
       const [latestRes, uploadsRes] = await Promise.all([
-        get({ apiName: API_NAME, path: API_LATEST_PATH }).response,
-        get({ apiName: API_NAME, path: API_UPLOADS_PATH }).response,
+        get({
+          apiName: API_NAME,
+          path: API_LATEST_PATH,
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        }).response,
+        get({ apiName: API_NAME, path: API_UPLOADS_PATH,
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }, }).response,
       ]);
       const latestData = await latestRes.body.json();
       const uploadsData = await uploadsRes.body.json();
@@ -98,11 +114,18 @@ const ServiceMaster = ({ user }) => {
   };
 
   const handleDownload = async (key) => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     try {
       const res = await get({
         apiName: API_NAME,
         path: API_BASE_PATH,
-        options: { queryParams: { key } },
+        options: { queryParams: { key },
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }, },
       }).response;
       const { url } = await res.body.json();
       window.open(url, "_blank");
@@ -113,13 +136,18 @@ const ServiceMaster = ({ user }) => {
   };
 
   const handleApply = async (key) => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     try {
       setError("");
       setUploading(true);
       await post({
         apiName: API_NAME,
         path: API_BASE_PATH,
-        options: { body: { key } },
+        options: { body: { key },
+        headers: {
+              Authorization: `Bearer ${token}`,
+            },  },
       }).response;
       setSubmitted(true);
       setMessage("マスタ適用が完了しました。");

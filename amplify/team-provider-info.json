@@ -10,7 +10,8 @@
       "StackName": "amplify-accountmanager-dev-d9be5",
       "StackId": "arn:aws:cloudformation:ap-northeast-1:911167912657:stack/amplify-accountmanager-dev-d9be5/bdd40770-473a-11f0-8c1b-0a445412414d",
       "AmplifyAppId": "d3kbfk7n9i3yo8",
-      "AuthTriggerTemplateURL": "https://s3.amazonaws.com/amplify-accountmanager-dev-d9be5-deployment/amplify-cfn-templates/auth/auth-trigger-cloudformation-template.json"
+      "AuthTriggerTemplateURL": "https://s3.amazonaws.com/amplify-accountmanager-dev-d9be5-deployment/amplify-cfn-templates/auth/auth-trigger-cloudformation-template.json",
+      "APIGatewayAuthURL": "https://s3.amazonaws.com/amplify-accountmanager-dev-d9be5-deployment/amplify-cfn-templates/api/APIGatewayAuthStack.json"
     },
     "categories": {
       "function": {
@@ -21,15 +22,15 @@
         },
         "inquiriesHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/inquiriesHandler-4354442b484f4a6a3742-build.zip"
+          "s3Key": "amplify-builds/inquiriesHandler-59556949653478526930-build.zip"
         },
         "ledgersHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/ledgersHandler-4c535334476a32625032-build.zip"
+          "s3Key": "amplify-builds/ledgersHandler-53535570487a67323652-build.zip"
         },
         "serviceHandler": {
           "deploymentBucketName": "amplify-accountmanager-dev-d9be5-deployment",
-          "s3Key": "amplify-builds/serviceHandler-422f30573064335a6a47-build.zip"
+          "s3Key": "amplify-builds/serviceHandler-57586774304448625431-build.zip"
         }
       },
       "auth": {
@@ -40,6 +41,12 @@
         "dynamodbaccountmanager": {},
         "s3accountmanager": {},
         "servicemaster": {}
+      },
+      "hosting": {
+        "amplifyhosting": {
+          "appId": "d3kbfk7n9i3yo8",
+          "type": "manual"
+        }
       },
       "api": {
         "apiaccountmanager": {}

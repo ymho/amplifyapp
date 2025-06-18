@@ -8,7 +8,7 @@
             "Arn"
           ],
           "category": "function",
-          "resourceName": "ledgersHandler"
+          "resourceName": "inquiriesHandler"
         },
         {
           "attributes": [
@@ -37,7 +37,7 @@
             "Arn"
           ],
           "category": "function",
-          "resourceName": "inquiriesHandler"
+          "resourceName": "serviceHandler"
         },
         {
           "attributes": [
@@ -45,7 +45,7 @@
             "Arn"
           ],
           "category": "function",
-          "resourceName": "serviceHandler"
+          "resourceName": "ledgersHandler"
         }
       ],
       "providerPlugin": "awscloudformation",
@@ -198,6 +198,13 @@
       "service": "Lambda"
     }
   },
+  "hosting": {
+    "amplifyhosting": {
+      "providerPlugin": "awscloudformation",
+      "service": "amplifyhosting",
+      "type": "manual"
+    }
+  },
   "parameters": {
     "AMPLIFY_function_cognitoaccountmanagerPostConfirmation_GROUP": {
       "usedBy": [
@@ -268,6 +275,22 @@
         {
           "category": "function",
           "resourceName": "serviceHandler"
+        }
+      ]
+    },
+    "AMPLIFY_hosting_amplifyhosting_appId": {
+      "usedBy": [
+        {
+          "category": "hosting",
+          "resourceName": "amplifyhosting"
+        }
+      ]
+    },
+    "AMPLIFY_hosting_amplifyhosting_type": {
+      "usedBy": [
+        {
+          "category": "hosting",
+          "resourceName": "amplifyhosting"
         }
       ]
     }

@@ -17,9 +17,9 @@ import {
   Button,
 } from "@aws-amplify/ui-react";
 import { Link as RouterLink } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_NAME = "apiaccountmanager";
-const API_PATH = "/inquiries";
 
 const Inquiries = () => {
   const [inquiries, setInquiries] = useState([]);
@@ -29,12 +29,23 @@ const Inquiries = () => {
   useEffect(() => {
     const fetchInquiries = async () => {
       try {
-        const restOperation = get({ apiName: API_NAME, path: API_PATH });
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        const restOperation = get({
+          apiName: API_NAME,
+          path: "/inquiries",
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        });
+
         const { body } = await restOperation.response;
-        const data = await body.json(); // ← v6ではここで明示的に `.json()` が必要です
+        const data = await body.json();
         setInquiries(data);
       } catch (err) {
-        console.error("問い合わせ一覧取得エラー:", err);
+        console.error("🔥 問い合わせ一覧取得エラー:", err);
         setError("問い合わせ一覧の取得に失敗しました");
       } finally {
         setLoading(false);
@@ -45,8 +56,12 @@ const Inquiries = () => {
 
   return (
     <View padding="1rem" maxWidth="1200px" margin="0 auto">
-      <Flex justifyContent="space-between" alignItems="center" marginBottom="1rem">
-        <Heading level={4}>問い合わせ一覧</Heading>
+      <Flex
+        justifyContent="space-between"
+        alignItems="center"
+        marginBottom="1rem"
+      >
+        <Heading level={5}>問い合わせ一覧</Heading>
         <Link to="/inquiry/new">
           <Button variation="primary">新規作成</Button>
         </Link>
@@ -56,14 +71,14 @@ const Inquiries = () => {
       {error && <Alert variation="error">{error}</Alert>}
 
       {!loading && !error && inquiries.length === 0 && (
-        <Text>問い合わせはありません。</Text>
+        <Text color="#666">問い合わせはありません。</Text>
       )}
 
       {!loading && inquiries.length > 0 && (
         <Table highlightOnHover>
           <TableHead>
             <TableRow>
-              <TableCell>件名</TableCell> {/* ← ID → タイトルへ */}
+              <TableCell>件名</TableCell>
               <TableCell>ステータス</TableCell>
               <TableCell>作成日時</TableCell>
               <TableCell>更新日時</TableCell>

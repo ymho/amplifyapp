@@ -17,6 +17,7 @@ import LedgerNew from './pages/LedgerNew';
 import ServiceMaster from './pages/ServiceMaster';
 import Ledgers from './pages/Ledgers';
 import LedgerDetail from "./pages/LedgerDetail";
+import Home from "./pages/Home"
 
 Amplify.configure(awsExports);
 
@@ -41,7 +42,8 @@ function App({ signOut, user }) {
               <Route path="/inquiries/:id" element={<InquiryDetail user={userInfo} />} />
               {/* 他のページもここに追加 */}
               {/* <Route path="/ledgers" element={<Ledgers user={userInfo} />} /> */}
-              <Route path="/" element={<Ledgers user={userInfo} />} />
+              <Route path="/" element={<Home user={userInfo} />} />
+              <Route path="/ledgers" element={<Ledgers user={userInfo} />} />
               <Route path="/ledgers/:id" element={<LedgerDetail user={userInfo} />} />
               <Route path="/ledger/new" element={<LedgerNew user={userInfo} />} />
               {/* <Route path="/admin/ledgers" element={<AdminLedgers user={userInfo} />} /> */}

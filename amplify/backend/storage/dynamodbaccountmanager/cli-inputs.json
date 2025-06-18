@@ -38,6 +38,17 @@
         "fieldName": "gsi3pk",
         "fieldType": "string"
       }
+    },
+    {
+      "name": "gsi4",
+      "partitionKey": {
+        "fieldName": "gsi4pk",
+        "fieldType": "string"
+      },
+      "sortKey": {
+        "fieldName": "gsi4sk",
+        "fieldType": "string"
+      }
     }
   ],
   "triggerFunctions": []

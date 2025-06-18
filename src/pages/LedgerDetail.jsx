@@ -18,6 +18,7 @@ import {
 } from "@aws-amplify/ui-react";
 import { get, post } from "aws-amplify/api";
 import { useParams } from "react-router-dom";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_NAME = "apiaccountmanager";
 
@@ -54,7 +55,17 @@ const LedgerDetail = ({ user }) => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const res = await get({ apiName: API_NAME, path: "/services" });
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        const res = await get({
+          apiName: API_NAME,
+          path: "/services",
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        });
         const { body } = await res.response;
         const data = await body.json();
         setAvailableServices(data);
@@ -70,7 +81,17 @@ const LedgerDetail = ({ user }) => {
     setLoading(true);
     const fetchLedger = async () => {
       try {
-        const res = await get({ apiName: API_NAME, path: `/ledgers/${id}` });
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        const res = await get({
+          apiName: API_NAME,
+          path: `/ledgers/${id}`,
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        });
         const { body } = await res.response;
         const data = await body.json();
         setApprovalId(data.approval_id || "");
@@ -161,6 +182,8 @@ const LedgerDetail = ({ user }) => {
     setSubmitted(false);
 
     try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
       await post({
         apiName: API_NAME,
         path: "/ledgers",
@@ -172,13 +195,24 @@ const LedgerDetail = ({ user }) => {
             users,
             allowed_services: selectedServices,
           },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       }).response;
 
       setSubmitted(true);
 
       // ✅ 画面をリロードせずデータだけ再取得
-      const res = await get({ apiName: API_NAME, path: `/ledgers/${id}` });
+      const res = await get({
+        apiName: API_NAME,
+        path: `/ledgers/${id}`,
+        options: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      });
       const { body } = await res.response;
       const data = await body.json();
       setApprovalId(data.approval_id || "");
@@ -731,14 +765,16 @@ const LedgerDetail = ({ user }) => {
                   }
                   marginBottom="1rem"
                 />
-                <CheckboxField
-                  label="このユーザーは管理者です"
-                  checked={newUser.is_manager}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, is_manager: e.target.checked })
-                  }
-                  marginBottom="1.5rem"
-                />
+                {isAdmin && (
+                  <CheckboxField
+                    label="このユーザーは管理者です"
+                    checked={newUser.is_manager}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, is_manager: e.target.checked })
+                    }
+                    marginBottom="1.5rem"
+                  />
+                )}
 
                 {modalError && (
                   <Text color="red" fontSize="0.9rem" marginBottom="1rem">

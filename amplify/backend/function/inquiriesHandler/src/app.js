@@ -19,40 +19,101 @@ if (process.env.ENV && process.env.ENV !== "NONE") {
 }
 
 const app = express();
+
 app.use(bodyParser.json());
 app.use(awsServerlessExpressMiddleware.eventContext());
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-username"
+  );
+  if (req.method === "OPTIONS") {
+    return res.status(200).json({
+      message: "CORS preflight passed",
+    });
+  }
   next();
 });
 
-// GET /inquiries - 一覧取得（META）
+app.use((req, res, next) => {
+  const claims =
+    req.apiGateway?.event?.requestContext?.authorizer?.claims || {};
+  const groups = claims["cognito:groups"]?.split(",") || [];
+  console.log("📜 requestContext:", req.apiGateway?.event?.requestContext);
+  console.log("🔐 userclaims:", claims);
+
+  req.user = {
+    email: claims.email,
+    given_name: claims.given_name,
+    family_name: claims.family_name,
+    groups,
+    username: claims["cognito:username"],
+    isAdmin: groups.includes("admin"),
+  };
+
+  req.isAdmin = req.user.isAdmin;
+  req.userRole = req.isAdmin ? "admin" : "user";
+
+  console.log("✅ 認証済ユーザー:", req.user);
+
+  next();
+});
+
+// GET /inquiries - Inquiry一覧取得（METAのみ）
 app.get("/inquiries", async (req, res) => {
-  try {
-    const result = await ddbDocClient.send(
-      new QueryCommand({
-        TableName: tableName,
-        IndexName: "gsi1",
-        KeyConditionExpression: "gsi1pk = :pk and gsi1sk = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "INQUIRY",
-          ":sk": "META",
-        },
-      })
-    );
-    console.log("🔍 gsi1pk = :pk and gsi1sk = :sk", {
-      ":pk": "INQUIRY",
-      ":sk": "META",
-    });
-    console.log("📦 DynamoDBからの読み込み結果:", result.Items);
-    res.json(result.Items);
-  } catch (err) {
-    console.error("🔥 DynamoDBからの読み込み失敗:", err);
-    res
-      .status(500)
-      .json({ error: "Failed to fetch inquiries: " + err.message });
+  console.log("🔍 GET /inquiries-  Inquiry一覧取得（METAのみ）");
+  if (req.isAdmin) {
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: tableName,
+          IndexName: "gsi1",
+          KeyConditionExpression: "gsi1pk = :pk and gsi1sk = :sk",
+          ExpressionAttributeValues: {
+            ":pk": "INQUIRY",
+            ":sk": "META",
+          },
+        })
+      );
+      console.log("📦 Inquiry一覧の読み込み結果:", result.Items);
+      res.json(result.Items);
+    } catch (err) {
+      console.error("🔥 Inquiry一覧の読み込み失敗:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch inquiries: " + err.message });
+    }
+  } else {
+    // 一般ユーザー: 関与している問い合わせを取得
+    try {
+      const result = await ddbDocClient.send(
+        new QueryCommand({
+          TableName: tableName,
+          IndexName: "gsi4",
+          KeyConditionExpression: "gsi4pk = :email and gsi4sk = :sk",
+          ExpressionAttributeValues: {
+            ":email": `USER#${req.user.email}`,
+            ":sk": "META",
+          },
+        })
+      );
+      console.log(
+        "📦 Inquiry一覧の読み込み結果（一般ユーザー）:",
+        result.Items
+      );
+      res.json(result.Items);
+    } catch (err) {
+      console.error("🔥 Inquiry一覧の読み込み失敗（一般ユーザー）:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch managed ledgers: " + err.message });
+    }
   }
 });
 
@@ -71,6 +132,8 @@ app.post("/inquiries", async (req, res) => {
     updated_at,
     gsi1pk: "INQUIRY",
     gsi1sk: "META",
+    gsi4pk: `USER#${req.user.email}`,
+    gsi4sk: "META",
   };
 
   try {
@@ -165,7 +228,11 @@ app.post("/inquiries/:id/messages", async (req, res) => {
   console.log("📨 POST /inquiries/:id/messages reached", req.params.id);
   const id = req.params.id;
   const message = req.body;
+
   try {
+    const now = new Date().toISOString();
+
+    // ① メッセージ追加
     await ddbDocClient.send(
       new PutCommand({
         TableName: tableName,
@@ -175,20 +242,40 @@ app.post("/inquiries/:id/messages", async (req, res) => {
           ...message,
           gsi1pk: "INQUIRY",
           gsi1sk: "MESSAGE",
+          gsi4pk: `USER#${req.user.email}`,
+          gsi4sk: "MESSAGE",
         },
       })
     );
-    console.log("📦 DynamoDBへの書き込み成功:", {
-      pk: `INQUIRY#${id}`,
-      sk: `MESSAGE#${message.created_at}`,
-      ...message,
-    });
-    res.status(201).json({ message: "Message added" });
+
+    // ② METAのupdated_at更新
+    const metaResult = await ddbDocClient.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: { pk: `INQUIRY#${id}`, sk: "META" },
+      })
+    );
+
+    const existingMeta = metaResult.Item;
+    if (existingMeta) {
+      existingMeta.updated_at = now;
+
+      await ddbDocClient.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: existingMeta,
+        })
+      );
+    }
+
+    console.log("📦 メッセージ追加およびMETA更新成功");
+    res.status(201).json({ message: "Message added and updated_at updated" });
   } catch (err) {
-    console.error("🔥 DynamoDB書き込み失敗:", err);
+    console.error("🔥 メッセージ追加またはMETA更新失敗:", err);
     res.status(500).json({ error: "Failed to add message: " + err.message });
   }
 });
+
 
 app.listen(3000, () => console.log("Inquiry API started"));
 module.exports = app;

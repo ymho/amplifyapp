@@ -16,6 +16,7 @@ import {
   Alert,
 } from "@aws-amplify/ui-react";
 import { get, post } from "aws-amplify/api";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_NAME = "apiaccountmanager";
 
@@ -47,7 +48,14 @@ const LedgerNew = ({ user }) => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const res = await get({ apiName: API_NAME, path: "/services" });
+                const session = await fetchAuthSession();
+                const token = session.tokens?.idToken?.toString();
+        const res = await get({ apiName: API_NAME, path: "/services" ,
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },});
         const { body } = await res.response;
         const data = await body.json();
         setAvailableServices(data);
@@ -117,6 +125,8 @@ const LedgerNew = ({ user }) => {
     setSubmitted(false);
 
     try {
+      const session = await fetchAuthSession();
+                const token = session.tokens?.idToken?.toString();
       await post({
         apiName: API_NAME,
         path: "/ledgers",
@@ -128,6 +138,9 @@ const LedgerNew = ({ user }) => {
             users,
             allowed_services: selectedServices,
           },
+          headers: {
+              Authorization: `Bearer ${token}`,
+            },
         },
       }).response;
       setSubmitted(true);
@@ -165,20 +178,39 @@ const LedgerNew = ({ user }) => {
         </Flex>
       </Flex>
 
-      <Flex gap="1rem" marginTop="1rem" alignItems="center">
-        <TextField
-          label={`情報システム企画書の受付番号${
-            !isAdmin ? "（編集不可）" : ""
-          }`}
-          value={approvalId}
-          onChange={(e) => setApprovalId(e.target.value)}
-          width="100%"
-          isReadOnly={!isAdmin}
-          variation={!isAdmin ? "quiet" : undefined}
-          style={!isAdmin ? { backgroundColor: "#f9f9f9", opacity: 0.8 } : {}}
-          placeholder="例) 24-0035"
-        />
-      </Flex>
+<View marginTop="1rem">
+  <TextField
+    label={`情報システム企画書の受付番号${!isAdmin ? "（編集不可）" : ""}`}
+    value={approvalId}
+    onChange={(e) => setApprovalId(e.target.value)}
+    isReadOnly={!isAdmin}
+    variation={!isAdmin ? "quiet" : undefined}
+    style={{
+      backgroundColor: !isAdmin ? "#f9f9f9" : undefined,
+      opacity: !isAdmin ? 0.8 : undefined,
+    }}
+    placeholder="例) 24-0035"
+    width="100%"
+    marginBottom="1rem"
+  />
+
+  <TextField
+    label={`グループ名（システム名）${!isAdmin ? "（編集不可）" : ""}`}
+    value={approvalId}
+    onChange={(e) => setApprovalId(e.target.value)}
+    isReadOnly={!isAdmin}
+    variation={!isAdmin ? "quiet" : undefined}
+    style={{
+      backgroundColor: !isAdmin ? "#f9f9f9" : undefined,
+      opacity: !isAdmin ? 0.8 : undefined,
+    }}
+    placeholder="例) 〇〇部△△システム"
+    width="100%"
+  />
+</View>
+
+
+
 
       {formError && (
         <Text color="red" fontSize="0.9rem" marginTop="0.5rem">
@@ -304,7 +336,7 @@ const LedgerNew = ({ user }) => {
           {users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={4}
+                colSpan={5}
                 style={{ textAlign: "center", padding: "1rem", color: "#666" }}
               >
                 ユーザーが追加されていません。「ユーザーを追加」ボタンから登録してください。
@@ -482,7 +514,7 @@ const LedgerNew = ({ user }) => {
               marginBottom="1rem"
             />
             <CheckboxField
-              label="このユーザーは管理者です"
+              label="このユーザーは情報管理主管者（または台帳申請者）です"
               checked={newUser.is_manager}
               onChange={(e) =>
                 setNewUser({ ...newUser, is_manager: e.target.checked })

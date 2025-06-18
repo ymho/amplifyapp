@@ -50,9 +50,45 @@ const app = express();
 app.use(bodyParser.json());
 app.use(awsServerlessExpressMiddleware.eventContext());
 
-app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-username"
+  );
+  if (req.method === "OPTIONS") {
+    return res.status(200).json({
+      message: "CORS preflight passed",
+    });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  const claims =
+    req.apiGateway?.event?.requestContext?.authorizer?.claims || {};
+  const groups = claims["cognito:groups"]?.split(",") || [];
+  console.log("📜 requestContext:", req.apiGateway?.event?.requestContext);
+  console.log("🔐 userclaims:", claims);
+
+  req.user = {
+    email: claims.email,
+    given_name: claims.given_name,
+    family_name: claims.family_name,
+    groups,
+    username: claims["cognito:username"],
+    isAdmin: groups.includes("admin"),
+  };
+
+  req.isAdmin = req.user.isAdmin;
+  req.userRole = req.isAdmin ? "admin" : "user";
+
+  console.log("✅ 認証済ユーザー:", req.user);
+
   next();
 });
 

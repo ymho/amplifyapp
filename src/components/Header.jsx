@@ -16,14 +16,8 @@ const Header = ({ user, signOut }) => {
   const isAdmin = user?.groups?.includes("admin");
 
   const navItems = [
-    { label: "アカウント台帳", path: "/" },
-    { label: "問い合わせ一覧", path: "/inquiries" },
-    { label: "新規問い合わせ", path: "/inquiry/new" },
     ...(isAdmin
-      ? [
-          { label: "台帳作成（管理者）", path: "/ledger/new" },
-          { label: "サービスマスタ（管理者）", path: "/service" },
-        ]
+      ? [{ label: "サービスマスタ（管理者）", path: "/service" }]
       : []),
   ];
 
@@ -57,9 +51,11 @@ const Header = ({ user, signOut }) => {
       >
         {/* ロゴとナビゲーション */}
         <Flex alignItems="center" gap="1rem">
-          <Text fontWeight="600" fontSize="1.125rem">
-            Google Account Manager
-          </Text>
+          <NavLink to="/" style={{ textDecoration: "none" }}>
+            <Text fontWeight="600" fontSize="1.125rem" color="#111827">
+              My Account
+            </Text>
+          </NavLink>
 
           {/* ハンバーガーアイコン（スマホのみ） */}
           <Button

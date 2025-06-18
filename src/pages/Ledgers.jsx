@@ -14,36 +14,55 @@ import {
   Alert,
 } from "@aws-amplify/ui-react";
 import { get } from "aws-amplify/api";
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { Link } from "react-router-dom";
 
 const API_NAME = "apiaccountmanager";
 
-const LedgerList = () => {
+const LedgerList = ({ user }) => {
   const [ledgers, setLedgers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const fetchLedgers = async () => {
+      setLoading(true);
+      setLoadError("");
+
       try {
-        const res = await get({ apiName: API_NAME, path: "/ledgers" });
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+
+        const res = await get({
+          apiName: API_NAME,
+          path: "/ledgers",
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        });
+
         const { body } = await res.response;
         const data = await body.json();
         setLedgers(data);
       } catch (err) {
-        console.error("台帳一覧の取得に失敗:", err);
+        console.error("🔥 台帳一覧の取得に失敗:", err);
         setLoadError("台帳の取得に失敗しました。");
       } finally {
         setLoading(false);
       }
     };
-
     fetchLedgers();
-  }, []);
+  }, [user]);
 
   return (
     <View maxWidth="1200px" margin="0 auto" padding="1rem">
-      <Flex justifyContent="space-between" alignItems="center" marginBottom="1rem">
+      <Flex
+        justifyContent="space-between"
+        alignItems="center"
+        marginBottom="1rem"
+      >
         <Heading level={5}>台帳一覧</Heading>
         <Link to="/ledger/new">
           <Button variation="primary">新規作成</Button>

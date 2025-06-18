@@ -26,6 +26,7 @@ import {
   MdFileUpload,
   MdRemoveCircle,
 } from "react-icons/md";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_NAME = "apiaccountmanager";
 
@@ -40,13 +41,23 @@ const InquiryDetail = ({ user }) => {
   const [files, setFiles] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
   const hiddenInput = useRef(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const isAdmin = user?.groups?.includes("admin");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     const fetchInquiry = async () => {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
       try {
         const restOperation = get({
           apiName: API_NAME,
           path: `/inquiries/${id}`,
+          options: {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
         }).response;
         const { body } = await restOperation;
         const rawData = await body.json();
@@ -84,6 +95,8 @@ const InquiryDetail = ({ user }) => {
   };
 
   const handleSubmit = async () => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     if (!reply.trim()) return;
     try {
       const attachments = await uploadFilesToS3(files, "uploads");
@@ -114,7 +127,10 @@ const InquiryDetail = ({ user }) => {
       await post({
         apiName: API_NAME,
         path: `/inquiries/${id}/messages`,
-        options: { body: { ...message, timestamp } },
+        options: {
+          body: { ...message, timestamp },
+          headers: { Authorization: `Bearer ${token}` },
+        },
       }).response;
 
       setInquiry((prev) => ({
@@ -123,6 +139,8 @@ const InquiryDetail = ({ user }) => {
       }));
       setReply("");
       setFiles([]);
+      setSuccessMessage("送信しました");
+      setTimeout(() => setSuccessMessage(""), 3000); // 3秒後に消す
     } catch (err) {
       console.error("送信失敗:", err);
       alert("返信の送信に失敗しました。");
@@ -130,6 +148,8 @@ const InquiryDetail = ({ user }) => {
   };
 
   const handleReactionClick = async (messageIndex, emoji) => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     const email = user?.email || "Unknown User";
     try {
       const updatedMessages = [...inquiry.messages];
@@ -155,7 +175,10 @@ const InquiryDetail = ({ user }) => {
       await post({
         apiName: API_NAME,
         path: `/inquiries/${id}/messages`,
-        options: { body: { ...targetMsg, timestamp: targetMsg.created_at } },
+        options: {
+          body: { ...targetMsg, timestamp: targetMsg.created_at },
+          headers: { Authorization: `Bearer ${token}` },
+        },
       }).response;
 
       setInquiry((prev) => ({
@@ -169,24 +192,43 @@ const InquiryDetail = ({ user }) => {
   };
 
   const toggleStatus = async () => {
+    if (!isAdmin) {
+      setShowConfirmModal(true);
+      return;
+    }
+    await performToggle();
+  };
+
+  const performToggle = async () => {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
     const newStatus = inquiry.status === "open" ? "closed" : "open";
     try {
       await post({
         apiName: API_NAME,
-        path: `/inquiries/${id}`, // あなたのAPI設計により変更可
+        path: `/inquiries/${id}`,
         options: {
           body: {
             ...inquiry,
             status: newStatus,
             timestamp: new Date().toISOString(),
           },
+          headers: { Authorization: `Bearer ${token}` },
         },
       }).response;
 
       setInquiry((prev) => ({ ...prev, status: newStatus }));
+      setSuccessMessage(
+        newStatus === "closed"
+          ? "問い合わせをクローズしました"
+          : "問い合わせをオープンにしました"
+      );
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       console.error("ステータス更新失敗:", err);
       alert("ステータスの更新に失敗しました。");
+    } finally {
+      setShowConfirmModal(false);
     }
   };
 
@@ -196,6 +238,11 @@ const InquiryDetail = ({ user }) => {
 
   return (
     <View padding="1rem" maxWidth="1200px" margin="0 auto">
+      {successMessage && (
+        <Alert variation="success" marginBottom="1rem" isDismissible={true}>
+          {successMessage}
+        </Alert>
+      )}
       <Heading level={5} marginBottom="0.25rem">
         {inquiry.title || "（無題）"}
       </Heading>
@@ -343,6 +390,7 @@ const InquiryDetail = ({ user }) => {
           <Button
             size="small"
             variation="link"
+            isDisabled={!reply.trim() || inquiry.status === "closed"}
             onClick={() => setShowPreview((prev) => !prev)}
           >
             {showPreview ? "編集に戻る" : "プレビュー表示"}
@@ -369,69 +417,77 @@ const InquiryDetail = ({ user }) => {
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             rows={10}
-            placeholder="ここに返信内容を入力してください（Markdownが使えます）"
+            readOnly={inquiry.status === "closed"}
+            placeholder={
+              inquiry.status === "closed"
+                ? "この問い合わせはクローズされています。返信できません。"
+                : "ここに返信内容を入力してください（Markdownが使えます）"
+            }
             marginTop="0.5rem"
           />
         )}
       </View>
-
-      <DropZone
-        onDropComplete={handleFileDrop}
-        acceptedFileTypes={["image/*", "application/pdf", ".doc", ".docx"]}
-        marginTop="1rem"
-      >
-        <Flex
-          direction="row"
-          justifyContent="center"
-          alignItems="center"
-          gap="0.5rem"
-        >
-          <DropZone.Accepted>
-            <MdCheckCircle fontSize="2rem" />
-          </DropZone.Accepted>
-          <DropZone.Rejected>
-            <MdRemoveCircle fontSize="2rem" />
-          </DropZone.Rejected>
-          <DropZone.Default>
-            <MdFileUpload fontSize="2rem" />
-          </DropZone.Default>
-          <Text>ファイルをドロップまたは</Text>
-          <Button size="small" onClick={() => hiddenInput.current.click()}>
-            ファイルを選択
-          </Button>
-        </Flex>
-      </DropZone>
-      <input
-        type="file"
-        multiple
-        ref={hiddenInput}
-        style={{ display: "none" }}
-        onChange={(e) => setFiles(Array.from(e.target.files))}
-      />
-
-      <View marginTop="1rem">
-        {files.map((file, index) => (
-          <Flex
-            key={file.name}
-            alignItems="center"
-            justifyContent="space-between"
-            padding="0.25rem 0"
+      {inquiry.status !== "closed" && (
+        <>
+          <DropZone
+            onDropComplete={handleFileDrop}
+            acceptedFileTypes={["image/*", "application/pdf", ".doc", ".docx"]}
+            marginTop="1rem"
           >
-            <Flex alignItems="center" gap="0.5rem">
-              {getFileIcon(file.name)}
-              <Text fontSize="0.875rem">{file.name}</Text>
-            </Flex>
-            <Button
-              size="small"
-              variation="link"
-              colorTheme="error"
-              onClick={() => removeFile(index)}
+            <Flex
+              direction="row"
+              justifyContent="center"
+              alignItems="center"
+              gap="0.5rem"
             >
-              削除
-            </Button>
-          </Flex>
-        ))}
-      </View>
+              <DropZone.Accepted>
+                <MdCheckCircle fontSize="2rem" />
+              </DropZone.Accepted>
+              <DropZone.Rejected>
+                <MdRemoveCircle fontSize="2rem" />
+              </DropZone.Rejected>
+              <DropZone.Default>
+                <MdFileUpload fontSize="2rem" />
+              </DropZone.Default>
+              <Text>ファイルをドロップまたは</Text>
+              <Button size="small" onClick={() => hiddenInput.current.click()}>
+                ファイルを選択
+              </Button>
+            </Flex>
+          </DropZone>
+          <input
+            type="file"
+            multiple
+            ref={hiddenInput}
+            style={{ display: "none" }}
+            onChange={(e) => setFiles(Array.from(e.target.files))}
+          />
+
+          <View marginTop="1rem">
+            {files.map((file, index) => (
+              <Flex
+                key={file.name}
+                alignItems="center"
+                justifyContent="space-between"
+                padding="0.25rem 0"
+              >
+                <Flex alignItems="center" gap="0.5rem">
+                  {getFileIcon(file.name)}
+                  <Text fontSize="0.875rem">{file.name}</Text>
+                </Flex>
+                <Button
+                  size="small"
+                  variation="link"
+                  colorTheme="error"
+                  onClick={() => removeFile(index)}
+                >
+                  削除
+                </Button>
+              </Flex>
+            ))}
+          </View>
+        </>
+      )}
 
       <Flex justifyContent="flex-end" marginTop="1rem">
         <Button
@@ -444,14 +500,58 @@ const InquiryDetail = ({ user }) => {
       </Flex>
       {/* 👇 ステータス切り替えボタン */}
       <Flex justifyContent="flex-end" marginTop="1rem">
-        <Button
-          variation="link"
-          onClick={toggleStatus}
-          colorTheme={inquiry.status === "open" ? "error" : "success"}
-        >
-          {inquiry.status === "open" ? "クローズする" : "オープンに戻す"}
-        </Button>
+        {inquiry.status === "open" ? (
+          <Button variation="link" onClick={toggleStatus} colorTheme="error">
+            クローズする
+          </Button>
+        ) : (
+          isAdmin && (
+            <Button
+              variation="link"
+              onClick={toggleStatus}
+              colorTheme="success"
+            >
+              オープンに戻す
+            </Button>
+          )
+        )}
       </Flex>
+      {showConfirmModal && (
+        <View
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          backgroundColor="rgba(0,0,0,0.5)"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          zIndex={1000}
+        >
+          <Card variation="outlined" width="400px" padding="2rem">
+            <Heading level={5} marginBottom="1rem">
+              問い合わせをクローズしますか？
+            </Heading>
+            <Text>
+              クローズすると、この問い合わせに返信できなくなります。
+              よろしいですか？
+            </Text>
+            <Flex justifyContent="flex-end" gap="1rem" marginTop="2rem">
+              <Button onClick={() => setShowConfirmModal(false)}>
+                キャンセル
+              </Button>
+              <Button
+                variation="primary"
+                colorTheme="error"
+                onClick={performToggle}
+              >
+                はい、クローズする
+              </Button>
+            </Flex>
+          </Card>
+        </View>
+      )}
     </View>
   );
 };
